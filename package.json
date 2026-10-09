@@ -1,6 +1,6 @@
 {
   "name": "koota-animation",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "type": "module",
   "packageManager": "pnpm@11.4.0",
   "description": "Keyframe animation for koota traits, with an optional three.js transform bridge",
