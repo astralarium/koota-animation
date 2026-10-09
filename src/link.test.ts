@@ -86,6 +86,28 @@ describe("createLink", () => {
     expect(source.point.x).toBe(5);
   });
 
+  it("animates a fresh entity from the initial value", () => {
+    const world = createWorld();
+    const entity = world.spawn();
+    const source = new Source();
+    linkSource(entity, source, {
+      initial: { point: { x: 2 } },
+      animate: { value: { point: { x: 10 } }, duration: 100 },
+    });
+    expect(source.point.x).toBe(2);
+    OffsetAnimation.tick(world, 50);
+    expect(source.point.x).toBe(6);
+  });
+
+  it("keeps a linked entity's value over the initial value", () => {
+    const world = createWorld();
+    const entity = world.spawn(Offset);
+    entity.get(Offset)!.point.x = 3;
+    const source = new Source();
+    linkSource(entity, source, { initial: { point: { x: 0 } } });
+    expect(source.point.x).toBe(3);
+  });
+
   it("ignores a destroyed entity", () => {
     const world = createWorld();
     const entity = world.spawn();

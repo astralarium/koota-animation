@@ -7,8 +7,11 @@ export interface LinkOptions<
   T,
   P extends AnimationPropsBase = AnimationPropsBase,
 > {
-  /** Target keyframe: an entity with the trait animates to it; a fresh
-   * entity snaps to it. */
+  /** Start value for a fresh entity; {@link animate} runs from it.
+   * Ignored when the entity has the trait. */
+  initial?: Partial<T>;
+  /** Target keyframe: an entity with the trait or an {@link initial} value
+   * animates to it; otherwise a fresh entity snaps to it. */
   animate?: Keyframe<T, P>;
 }
 
@@ -42,7 +45,12 @@ export function createLink<
       if (options?.animate) system.setKeyframes(entity, [options.animate]);
     } else {
       entity.add(system.trait(record));
-      if (options?.animate) system.snap(entity, options.animate.value);
+      if (options?.initial) {
+        system.snap(entity, options.initial);
+        if (options.animate) system.setKeyframes(entity, [options.animate]);
+      } else if (options?.animate) {
+        system.snap(entity, options.animate.value);
+      }
     }
   };
 }

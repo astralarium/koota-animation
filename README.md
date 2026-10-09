@@ -67,6 +67,7 @@ world.query(OpacityAnimation.Keyframes);
 `createLink()` shares trait state with an external object.
 
 ```tsx
+import type { Entity } from "koota";
 import { createLink } from "koota-animation";
 import type { Material } from "three";
 
@@ -76,18 +77,21 @@ const linkMaterial = /*#__PURE__*/ createLink(
   (material: Material) => material,
 );
 
-const entity = world.spawn(Opacity({ opacity: 0 }));
-
-// Fade-in on mount.
-<meshBasicMaterial
-  transparent
-  ref={(material) =>
-    material &&
-    linkMaterial(entity, material, {
-      animate: { value: { opacity: 1 }, duration: 200 },
-    })
-  }
-/>;
+// Fade-in on mount. Set to `initial` if entity has no `Opacity`.
+function FadeIn({ entity }: { entity: Entity }) {
+  return (
+    <meshBasicMaterial
+      transparent
+      ref={(material) =>
+        material &&
+        linkMaterial(entity, material, {
+          initial: { opacity: 0 },
+          animate: { value: { opacity: 1 }, duration: 200 },
+        })
+      }
+    />
+  );
+}
 ```
 
 ### three.js
