@@ -89,13 +89,22 @@ export interface AnimationSystemOptions<
 
 /** Per-trait animation system created by {@link createAnimationSystem}. */
 export interface AnimationSystem<
-  T,
+  TTrait extends Trait,
   P extends AnimationPropsBase = AnimationPropsBase,
 > {
+  /** The animated trait. */
+  trait: TTrait;
   /** The keyframes trait — alias on use (e.g., `PositionKeyframes`). */
-  Keyframes: Trait<KeyframesSchema<T, P>>;
+  Keyframes: Trait<KeyframesSchema<TraitRecord<TTrait>, P>>;
+  /** Copies `source` into `target` in place. */
+  copy: (target: TraitRecord<TTrait>, source: TraitRecord<TTrait>) => void;
+  /** Sets the trait to `value` immediately; queued keyframes keep playing. */
+  snap: (entity: Entity, value: Partial<TraitRecord<TTrait>>) => void;
   /** Append a keyframe to the entity's queue (adds the trait if absent). */
-  pushKeyframe: (entity: Entity, keyframe: Keyframe<T, P>) => void;
+  pushKeyframe: (
+    entity: Entity,
+    keyframe: Keyframe<TraitRecord<TTrait>, P>,
+  ) => void;
   /** Replace all keyframes on an entity (adds the trait if absent). Fires
    * `onComplete` on the replaced frames. Returns whether the frames were
    * installed — false on a dead entity or a deduplicated no-op, whose new
@@ -103,7 +112,7 @@ export interface AnimationSystem<
    * duration. */
   setKeyframes: (
     entity: Entity,
-    frames: Keyframe<T, P>[],
+    frames: Keyframe<TraitRecord<TTrait>, P>[],
     options?: { loop?: boolean },
   ) => boolean;
   /** Drop the entity's queue without firing `onComplete`; the trait keeps

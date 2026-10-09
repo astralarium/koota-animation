@@ -1,7 +1,7 @@
 import { type Entity, trait } from "koota";
 import { type Object3D, Quaternion, Vector3 } from "three";
 
-import type { Keyframe } from "../types.js";
+import { createLink, type LinkOptions } from "../link.js";
 import {
   Transform,
   TransformAnimation,
@@ -12,12 +12,15 @@ import {
 /** Object3D parent at the last {@link linkObject3D}; a changed parent triggers a reparent. */
 export const ParentObject = /*#__PURE__*/ trait(() => null as Object3D | null);
 
-/** Options for {@link linkObject3D}. */
-export interface LinkObject3DOptions {
-  /** Keyframe to the target transform. An entity with a Transform animates
-   * to it; a fresh entity snaps to its value. */
-  animate?: Keyframe<TransformValue, TransformAnimationProps>;
-}
+/** Shares {@link Transform} with an Object3D's `position`, `quaternion`, and `scale`. */
+const linkTransform = /*#__PURE__*/ createLink(
+  TransformAnimation,
+  (object: Object3D) => ({
+    position: object.position,
+    rotation: object.quaternion,
+    scale: object.scale,
+  }),
+);
 
 /**
  * Binds an entity's {@link Transform} to an Object3D: the trait record holds
@@ -33,65 +36,23 @@ export interface LinkObject3DOptions {
 export function linkObject3D(
   entity: Entity,
   object: Object3D,
-  options?: LinkObject3DOptions,
+  options?: LinkOptions<TransformValue, TransformAnimationProps>,
 ): void {
   if (!entity.isAlive()) return;
 
-  const transform = entity.get(Transform);
+  const oldParent = entity.get(ParentObject);
   const currentParent = object.parent;
-
-  if (transform) {
-    const oldParent = entity.get(ParentObject);
-    if (oldParent && oldParent !== currentParent && currentParent) {
-      reparentObject3D(entity, oldParent, currentParent);
-    }
-
-    object.position.copy(transform.position);
-    object.quaternion.copy(transform.rotation);
-    object.scale.copy(transform.scale);
-    entity.set(Transform, {
-      position: object.position,
-      rotation: object.quaternion,
-      scale: object.scale,
-    });
-
-    if (options?.animate) {
-      TransformAnimation.setKeyframes(entity, [options.animate]);
-    }
-  } else {
-    entity.add(
-      Transform({
-        position: object.position,
-        rotation: object.quaternion,
-        scale: object.scale,
-      }),
-    );
-
-    if (options?.animate) {
-      applyTransformValue(entity, options.animate.value);
-    }
+  if (oldParent && currentParent && oldParent !== currentParent) {
+    reparentObject3D(entity, oldParent, currentParent);
   }
+
+  linkTransform(entity, object, options);
 
   if (entity.has(ParentObject)) {
     entity.set(ParentObject, currentParent);
   } else {
     entity.add(ParentObject(currentParent));
   }
-}
-
-/** Copies the given channels into the entity's {@link Transform}. */
-export function applyTransformValue(
-  entity: Entity,
-  value: Partial<TransformValue>,
-): void {
-  const transform = entity.get(Transform);
-  if (!transform) return;
-
-  if (value.position) transform.position.copy(value.position);
-  if (value.rotation) transform.rotation.copy(value.rotation);
-  if (value.scale) transform.scale.copy(value.scale);
-
-  entity.changed(Transform);
 }
 
 const _q1 = /*#__PURE__*/ new Quaternion();

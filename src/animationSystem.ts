@@ -56,7 +56,7 @@ export function createAnimationSystem<
   interpolate,
   copy,
   equals,
-}: AnimationSystemOptions<TTrait, P>): AnimationSystem<TraitRecord<TTrait>, P> {
+}: AnimationSystemOptions<TTrait, P>): AnimationSystem<TTrait, P> {
   type T = TraitRecord<TTrait>;
 
   const Keyframes: Trait<KeyframesSchema<T, P>> = trait({
@@ -66,6 +66,17 @@ export function createAnimationSystem<
     snapshot: () => initSnapshot(targetTrait),
     needsSnapshot: true,
   });
+
+  let scratch: T | undefined;
+  const snap = (entity: Entity, value: Partial<T>): void => {
+    if (!entity.isAlive() || !entity.has(targetTrait)) return;
+    const record = entity.get(targetTrait) as T;
+    const start = (scratch ??= initSnapshot(targetTrait));
+    copy(start, record);
+    interpolate(record, start, value, 1, undefined, entity);
+    // SoA records are copies: write back.
+    entity.set(targetTrait, record);
+  };
 
   const pushKeyframe = (entity: Entity, keyframe: Keyframe<T, P>): void => {
     assertDuration(keyframe);
@@ -213,7 +224,16 @@ export function createAnimationSystem<
     }
   };
 
-  return { Keyframes, pushKeyframe, setKeyframes, cancel, tick };
+  return {
+    trait: targetTrait,
+    Keyframes,
+    copy,
+    snap,
+    pushKeyframe,
+    setKeyframes,
+    cancel,
+    tick,
+  };
 }
 
 function assertDuration(keyframe: { duration: number }): void {

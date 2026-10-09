@@ -259,6 +259,24 @@ describe("cancel", () => {
   });
 });
 
+describe("snap", () => {
+  it("writes the value at once", () => {
+    const { snap } = makeSystem();
+    const world = createWorld();
+    const entity = world.spawn(Value);
+    snap(entity, { v: 7 });
+    expect(entity.get(Value)!.v).toBe(7);
+  });
+
+  it("ignores an entity without the trait", () => {
+    const { snap } = makeSystem();
+    const world = createWorld();
+    const entity = world.spawn();
+    snap(entity, { v: 7 });
+    expect(entity.has(Value)).toBe(false);
+  });
+});
+
 describe("setKeyframes", () => {
   it("rejects a looping queue without total duration", () => {
     const { setKeyframes } = makeSystem();

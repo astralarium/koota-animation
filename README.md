@@ -8,26 +8,30 @@ pnpm add koota-animation koota
 
 ## Usage
 
+### Define
+
 ```ts
-import { createWorld, trait } from "koota";
+import { trait } from "koota";
 import {
   type AnimationPropsBase,
   createAnimationSystem,
   type EasingFn,
-  easeOut,
   lerp,
 } from "koota-animation";
 
-const Opacity = trait({ value: 1 });
+// AoS (array of structs) trait: `createLink` shares the record.
+const Opacity = trait(() => ({ opacity: 1 }));
+// SoA (struct of arrays) trait; `createLink` shares only object fields.
+// const Opacity = trait({ opacity: 1 });
 
-// interpolate() props.
+// Keyframe props passed to `interpolate()`.
 interface OpacityProps extends AnimationPropsBase {
   easing?: EasingFn;
 }
 
 export const OpacityAnimation = /*#__PURE__*/ createAnimationSystem({
   trait: Opacity,
-  // Write the value at progress (0–1) into `out`.
+  // Writes the value at `progress` (0–1) into `out`.
   interpolate: (
     out,
     start,
@@ -35,75 +39,109 @@ export const OpacityAnimation = /*#__PURE__*/ createAnimationSystem({
     progress,
     props: OpacityProps | undefined,
   ) => {
-    if (target.value === undefined) return;
+    if (target.opacity === undefined) return;
     const t = props?.easing?.(progress) ?? progress;
-    out.value = lerp(start.value, target.value, t);
+    out.opacity = lerp(start.opacity, target.opacity, t);
   },
   // Copies the trait into the start snapshot.
   copy: (target, source) => {
-    target.value = source.value;
+    target.opacity = source.opacity;
   },
   // Optional. Lets `setKeyframes` skip an identical queue.
-  equals: (a, b) => a.value.value === b.value.value,
+  equals: (a, b) => a.value.opacity === b.value.opacity,
 });
+```
+
+### Animate
+
+```ts
+import { createWorld } from "koota";
+import { easeOut } from "koota-animation";
 
 const world = createWorld();
 const entity = world.spawn(Opacity);
 
-// Append keyframe. Keyframes start from the current value.
+// Appends a keyframe. Keyframes start from the current value.
 OpacityAnimation.pushKeyframe(entity, {
-  value: { value: 0 }, // target value
+  value: { opacity: 0 }, // target value
   duration: 300, // ms
   props: { easing: easeOut, onComplete: () => entity.destroy() },
   userData: "fade-out", // arbitrary
 });
 
-// Replace queue; calls onComplete() callbacks.
+// Replaces the queue; calls the replaced keyframes' `onComplete()`.
 OpacityAnimation.setKeyframes(
   entity,
   [
-    { value: { value: 0 }, duration: 500 },
-    { value: { value: 1 }, duration: 500 },
+    { value: { opacity: 0 }, duration: 500 },
+    { value: { opacity: 1 }, duration: 500 },
   ],
   { loop: true },
 );
 
-// Clear queue without calling keyframes onComplete().
+// Clears the queue without calling `onComplete()`.
 OpacityAnimation.cancel(entity);
 
-// Advances every animation by `delta` ms, then runs onComplete() callbacks.
+// Sets the value immediately.
+OpacityAnimation.snap(entity, { opacity: 0.5 });
+
+// Call once per frame: advances animations by `delta` ms; runs onComplete().
 OpacityAnimation.tick(world, delta);
 
 // Entities with an active animation have the `Keyframes` trait.
 world.query(OpacityAnimation.Keyframes);
 ```
 
+### Link
+
+`createLink` shares a trait's state with an external object, such as a material.
+
+```tsx
+import { createLink } from "koota-animation";
+import type { Material } from "three";
+
+// The entity's Opacity record becomes the material itself.
+const linkMaterial = /*#__PURE__*/ createLink(
+  OpacityAnimation,
+  (material: Material) => material,
+);
+
+// SoA trait: return the object fields to share.
+// createLink(ScaleAnimation, (mesh: Mesh) => ({ scale: mesh.scale }));
+
+const entity = world.spawn(Opacity({ opacity: 0 }));
+
+// Fades the material in on mount: links at opacity 0, then animates to 1.
+<meshBasicMaterial
+  transparent
+  ref={(material) =>
+    material &&
+    linkMaterial(entity, material, {
+      animate: { value: { opacity: 1 }, duration: 200 },
+    })
+  }
+/>;
+```
+
 ### three.js
+
+Install optional dependency:
 
 ```sh
 pnpm add three
 ```
 
+`koota-animation/three` provides a `Transform` trait with its animation and link.
+
 ```tsx
-import {
-  linkObject3D,
-  reparentObject3D,
-  TransformAnimation,
-} from "koota-animation/three";
+import { easeOut } from "koota-animation";
+import { linkObject3D, TransformAnimation } from "koota-animation/three";
+import { Vector3 } from "three";
 
-// Bind the entity trait to Object3D position, quaternion, and scale.
-// Existing links animate into position.
-// New Object3D links snap into position.
-<group
-  ref={(group) =>
-    group &&
-    linkObject3D(entity, group, {
-      animate: { value: { scale: new Vector3(1, 1, 1) }, duration: 200 },
-    })
-  }
-/>;
+// Links the `Transform` trait.
+<group ref={(group) => group && linkObject3D(entity, group)} />;
 
-// Animate position, rotation, and scale with per-channel easing.
+// Animates position, rotation, and scale.
 TransformAnimation.setKeyframes(entity, [
   {
     value: { position: new Vector3(0, 1, 0) },
@@ -111,9 +149,6 @@ TransformAnimation.setKeyframes(entity, [
     props: { easing: { position: easeOut } },
   },
 ]);
-
-// Moves the Transform to a new parent and preserves the world transform.
-reparentObject3D(entity, oldParent, newParent);
 ```
 
 ## License

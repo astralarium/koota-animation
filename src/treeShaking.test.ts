@@ -36,7 +36,7 @@ describe("tree shaking", () => {
     const out = await bundle(
       'import { createAnimationSystem } from "./index.js"; console.log(createAnimationSystem);',
     );
-    expect(out).not.toMatch(/easeOutBack|cubicBezier|bezierPresets/);
+    expect(out).not.toMatch(/easeOutBack|cubicBezier|bezierPresets|createLink/);
   });
 
   it("bundles the Transform trait without its animation or Object3D helpers", async () => {
@@ -45,7 +45,7 @@ describe("tree shaking", () => {
     );
     expect(out).toContain('from "three"');
     expect(out).not.toMatch(
-      /TransformAnimation|createAnimationSystem|ParentObject|reparentObject3D|_q1/,
+      /TransformAnimation|createAnimationSystem|createLink|ParentObject|reparentObject3D|_q1/,
     );
   });
 
@@ -53,6 +53,8 @@ describe("tree shaking", () => {
     const out = await bundle(
       'import { TransformAnimation } from "./three/index.js"; console.log(TransformAnimation);',
     );
-    expect(out).not.toMatch(/ParentObject|reparentObject3D|easeOutBack/);
+    expect(out).not.toMatch(
+      /ParentObject|reparentObject3D|createLink|linkTransform|easeOutBack/,
+    );
   });
 });
