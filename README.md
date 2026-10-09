@@ -12,41 +12,13 @@ pnpm add koota-animation koota
 
 ```ts
 import { trait } from "koota";
-import {
-  type AnimationPropsBase,
-  createAnimationSystem,
-  type EasingFn,
-  lerp,
-} from "koota-animation";
+import { createAnimationSystem } from "koota-animation";
 
 // AoS (array of structs) trait: `createLink` shares the record.
 const Opacity = trait(() => ({ opacity: 1 }));
 
-// Keyframe props passed to `interpolate()`.
-interface OpacityProps extends AnimationPropsBase {
-  easing?: EasingFn;
-}
-
 export const OpacityAnimation = /*#__PURE__*/ createAnimationSystem({
   trait: Opacity,
-  // Writes the value into `out`.
-  interpolate: (
-    out,
-    start,
-    target,
-    progress,
-    props: OpacityProps | undefined,
-  ) => {
-    if (target.opacity === undefined) return;
-    const t = props?.easing?.(progress) ?? progress;
-    out.opacity = lerp(start.opacity, target.opacity, t);
-  },
-  // Copies the trait into the start snapshot.
-  copy: (target, source) => {
-    target.opacity = source.opacity;
-  },
-  // Optional: `setKeyframes()` skips an identical queue.
-  equals: (a, b) => a.value.opacity === b.value.opacity,
 });
 ```
 

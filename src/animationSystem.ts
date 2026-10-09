@@ -7,14 +7,19 @@ import {
   type World,
 } from "koota";
 
+import { fieldwise, keyframeEquals } from "./fieldwise.js";
 import type {
   AnimationPropsBase,
   AnimationState,
   AnimationSystem,
   AnimationSystemOptions,
+  EasingProps,
+  Field,
   Keyframe,
   KeyframesSchema,
 } from "./types.js";
+
+type FieldMap = Partial<Record<string, Field<unknown>>>;
 
 /**
  * Create a keyframe animation system for one trait.
@@ -23,24 +28,15 @@ import type {
  *
  * @example
  * ```ts
- * interface PositionProps extends AnimationPropsBase {
- *   easing?: EasingFn;
- * }
- *
+ * const Position = trait({ x: 0, y: 0 });
  * export const PositionAnimation = /*#__PURE__*\/ createAnimationSystem({
  *   trait: Position,
- *   interpolate: (out, start, target, progress, props: PositionProps | undefined) => {
- *     const t = props?.easing?.(progress) ?? progress;
- *     if (target.x !== undefined) out.x = lerp(start.x, target.x, t);
- *     if (target.y !== undefined) out.y = lerp(start.y, target.y, t);
- *   },
- *   copy: (target, source) => Object.assign(target, source),
  * });
  *
  * PositionAnimation.pushKeyframe(entity, {
  *   value: { x: 10 },
  *   duration: 1000,
- *   props: { easing: easeInOut, onComplete: () => console.log("done") },
+ *   props: { easing: { x: easeInOut }, onComplete: () => console.log("done") },
  * });
  *
  * // Once per frame
@@ -49,14 +45,16 @@ import type {
  */
 export function createAnimationSystem<
   TTrait extends Trait,
-  P extends AnimationPropsBase = AnimationPropsBase,
->({
-  trait: targetTrait,
-  interpolate,
-  copy,
-  equals,
-}: AnimationSystemOptions<TTrait, P>): AnimationSystem<TTrait, P> {
+  P extends AnimationPropsBase = EasingProps<TraitRecord<TTrait>>,
+>(options: AnimationSystemOptions<TTrait, P>): AnimationSystem<TTrait, P> {
   type T = TraitRecord<TTrait>;
+
+  const targetTrait = options.trait;
+  const fields = options.fields as FieldMap | undefined;
+  const defaults = fieldwise<T, P>(() => initSnapshot(targetTrait), fields);
+  const interpolate = options.interpolate ?? defaults.interpolate;
+  const copy = options.copy ?? defaults.copy;
+  const equals = options.equals ?? keyframeEquals<T, P>(fields);
 
   const Keyframes: Trait<KeyframesSchema<T, P>> = trait({
     frames: (): Keyframe<T, P>[] => [],
@@ -105,7 +103,6 @@ export function createAnimationSystem<
 
     const current = entity.has(Keyframes) ? entity.get(Keyframes)! : undefined;
     if (
-      equals &&
       current?.loop === loop &&
       current.frames.length === frames.length &&
       frames.every((frame, i) => {

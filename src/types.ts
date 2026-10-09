@@ -1,9 +1,17 @@
 import type { Entity, Trait, TraitRecord, World } from "koota";
 
+import type { EasingProp } from "./easing.js";
+
 /** Base keyframe props; extend for custom props. */
 export interface AnimationPropsBase {
   /** Fires when the keyframe finishes or `setKeyframes()` replaces it. */
   onComplete?: () => void;
+}
+
+/** Props of the default `interpolate`. */
+export interface EasingProps<T> extends AnimationPropsBase {
+  /** One easing for all fields, or one per field. */
+  easing?: EasingProp<Extract<keyof T, string>>;
 }
 
 /** One animation step: target value, duration, and props. */
@@ -67,25 +75,69 @@ export type KeyframesSchema<
   needsSnapshot: boolean;
 };
 
+/** Interpolation of one field. */
+export interface Field<V> {
+  /** Write the value at eased `t` into `out` and return it; primitives
+   * return the new value. */
+  interpolate(out: V, start: V, target: V, t: number): V;
+  /** Copy `source` into `target` and return it; primitives return `source`. */
+  copy(target: V, source: V): V;
+  /** Compare two values. Default: `===`. */
+  equals?(a: V, b: V): boolean;
+}
+
+/** {@link Field} per key: optional for number fields, required otherwise. */
+export type Fields<T> = {
+  [K in keyof T as T[K] extends number ? never : K]-?: Field<T[K]>;
+} & {
+  [K in keyof T as T[K] extends number ? K : never]?: Field<T[K]>;
+};
+
 /** Options for {@link createAnimationSystem}. */
-export interface AnimationSystemOptions<
+export type AnimationSystemOptions<
   TTrait extends Trait,
   P extends AnimationPropsBase = AnimationPropsBase,
-> {
+> = {
   /** Trait to animate. */
   trait: TTrait;
-  /** Write the value between start and target into the trait record. */
-  interpolate: InterpolateFn<TraitRecord<TTrait>, P>;
-  /** Copy `source` into `target` in place. */
-  copy: (target: TraitRecord<TTrait>, source: TraitRecord<TTrait>) => void;
   /** Compare keyframe `value` and `props`. Lets `setKeyframes()` skip a
    * queue matching the current one; the system compares `loop`, `duration`,
-   * and `userData` itself. */
+   * and `userData` itself. Default: values by field `equals` or `===`, props
+   * by `===` except `onComplete`. */
   equals?: (
     a: Keyframe<TraitRecord<TTrait>, P>,
     b: Keyframe<TraitRecord<TTrait>, P>,
   ) => boolean;
+} & (
+  | CustomInterpolation<TraitRecord<TTrait>, P>
+  | FieldInterpolation<TraitRecord<TTrait>>
+);
+
+/** Whole-record interpolation. */
+export interface CustomInterpolation<
+  T,
+  P extends AnimationPropsBase = AnimationPropsBase,
+> {
+  /** Write the value between start and target into the trait record. */
+  interpolate: InterpolateFn<T, P>;
+  /** Copy `source` into `target` in place. */
+  copy: (target: T, source: T) => void;
+  fields?: undefined;
 }
+
+/** Per-field interpolation; reads {@link EasingProps}. */
+export type FieldInterpolation<T> = {
+  interpolate?: undefined;
+  copy?: undefined;
+} & (Partial<Fields<T>> extends Fields<T>
+  ? {
+      /** Field interpolations; number fields default to `numberField`. */
+      fields?: Fields<T>;
+    }
+  : {
+      /** Field interpolations; number fields default to `numberField`. */
+      fields: Fields<T>;
+    });
 
 /** Per-trait animation system created by {@link createAnimationSystem}. */
 export interface AnimationSystem<

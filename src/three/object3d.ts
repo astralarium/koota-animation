@@ -2,10 +2,10 @@ import { type Entity, trait } from "koota";
 import { type Object3D, Quaternion, Vector3 } from "three";
 
 import { createLink, type LinkOptions } from "../link.js";
+import type { EasingProps } from "../types.js";
 import {
   Transform,
   TransformAnimation,
-  type TransformAnimationProps,
   type TransformValue,
 } from "./transform.js";
 
@@ -36,7 +36,7 @@ const linkTransform = /*#__PURE__*/ createLink(
 export function linkObject3D(
   entity: Entity,
   object: Object3D,
-  options?: LinkOptions<TransformValue, TransformAnimationProps>,
+  options?: LinkOptions<TransformValue, EasingProps<TransformValue>>,
 ): void {
   if (!entity.isAlive()) return;
 
