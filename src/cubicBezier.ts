@@ -1,12 +1,13 @@
 import type { EasingFn } from "./easing.js";
 
+// Root-finding limits for `solveX`.
 const NEWTON_ITERATIONS = 8;
 const NEWTON_MIN_SLOPE = 1e-6;
 const PRECISION = 1e-7;
 const SUBDIVISION_MAX_ITERATIONS = 32;
 
 /**
- * Easing from cubic bezier control points; equivalent to CSS
+ * Create an easing from cubic bezier control points, matching CSS
  * `cubic-bezier(p1x, p1y, p2x, p2y)`. `p1x` and `p2x` lie in 0–1; input
  * outside 0–1 extends along the tangent at the nearest endpoint.
  *

@@ -1,51 +1,52 @@
 import type { Entity, Trait, TraitRecord, World } from "koota";
 
-/** Base for animation props. Extend when defining custom props. */
+/** Base keyframe props; extend for custom props. */
 export interface AnimationPropsBase {
-  /** Fires when the keyframe is no longer active — either finished or replaced via `setKeyframes`. */
+  /** Fires when the keyframe finishes or `setKeyframes()` replaces it. */
   onComplete?: () => void;
 }
 
-/** A target value, duration, and optional props the animation interpolates to. */
+/** One animation step: target value, duration, and props. */
 export interface Keyframe<T, P = AnimationPropsBase> {
-  /** Target value to interpolate to. */
+  /** Target value. */
   value: Partial<T>;
   /** Time (ms) to reach `value` from the previous state; finite, non-negative. */
   duration: number;
-  /** User-defined props (easing, bezier, callbacks, etc.). */
+  /** User-defined props, e.g. easing and `onComplete`. */
   props?: P;
-  /** Opaque metadata. Ignored by the animation system; consumers may tag
-   * keyframes (e.g. as a delete animation) and inspect them later. */
+  /** Opaque consumer metadata, e.g. a tag for a delete animation.
+   * `setKeyframes()` compares it by identity. */
   userData?: unknown;
 }
 
-/**
- * Interpolates between `start` and `target`, mutating `out` in place to avoid
- * GC pressure. `progress` is raw 0–1; the implementation applies any easing.
- */
+/** Write the value between `start` and `target` into `out` in place. */
 export type InterpolateFn<
   T,
   P extends AnimationPropsBase = AnimationPropsBase,
 > = (
+  /** Live trait record. */
   out: T,
-  /** Snapshot of the trait value when the current keyframe started. */
+  /** Trait value when the active keyframe started. */
   start: T,
+  /** Keyframe `value`. */
   target: Partial<T>,
+  /** Linear 0–1; the implementation applies easing. */
   progress: number,
+  /** Keyframe `props`; undefined from `snap()`. */
   props: P | undefined,
   entity: Entity,
 ) => void;
 
-/** Per-entity animation state: the record of the Keyframes trait. */
+/** Record of the `Keyframes` trait. */
 export interface AnimationState<
   T,
   P extends AnimationPropsBase = AnimationPropsBase,
 > {
-  /** Queue of keyframes to process; the head is the active one. */
+  /** Keyframe queue; the head is active. */
   frames: Keyframe<T, P>[];
   /** Time (ms) elapsed in the active keyframe. */
   elapsed: number;
-  /** Cycle keyframes when complete instead of removing them. */
+  /** Requeue completed keyframes at the tail. */
   loop: boolean;
   /** Trait value captured when the active keyframe started. */
   snapshot: T;
@@ -53,9 +54,8 @@ export interface AnimationState<
   needsSnapshot: boolean;
 }
 
-// Type alias: koota `Schema` requires an index-signature-compatible shape.
-/** Koota schema of the Keyframes trait; its record is {@link AnimationState}. */
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
+/** Koota schema of the `Keyframes` trait; its record is {@link AnimationState}. */
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions -- koota `Schema` needs an index signature
 export type KeyframesSchema<
   T,
   P extends AnimationPropsBase = AnimationPropsBase,
@@ -72,15 +72,15 @@ export interface AnimationSystemOptions<
   TTrait extends Trait,
   P extends AnimationPropsBase = AnimationPropsBase,
 > {
-  /** Trait to animate (e.g., Position). */
+  /** Trait to animate. */
   trait: TTrait;
-  /** Interpolates between start and target into the trait's record in place. */
+  /** Write the value between start and target into the trait record. */
   interpolate: InterpolateFn<TraitRecord<TTrait>, P>;
-  /** Copies a trait value into the snapshot (avoids allocation). */
+  /** Copy `source` into `target` in place. */
   copy: (target: TraitRecord<TTrait>, source: TraitRecord<TTrait>) => void;
-  /** Keyframe `value` and `props` equality. With it, `setKeyframes` skips a
-   * queue matching the current one; the system already matches `loop`,
-   * `duration`, and `userData`. */
+  /** Compare keyframe `value` and `props`. Lets `setKeyframes()` skip a
+   * queue matching the current one; the system compares `loop`, `duration`,
+   * and `userData` itself. */
   equals?: (
     a: Keyframe<TraitRecord<TTrait>, P>,
     b: Keyframe<TraitRecord<TTrait>, P>,
@@ -94,22 +94,22 @@ export interface AnimationSystem<
 > {
   /** The animated trait. */
   trait: TTrait;
-  /** The keyframes trait — alias on use (e.g., `PositionKeyframes`). */
+  /** Keyframe queue trait; present while animating. Alias per system, e.g. `PositionKeyframes`. */
   Keyframes: Trait<KeyframesSchema<TraitRecord<TTrait>, P>>;
-  /** Copies `source` into `target` in place. */
+  /** Copy `source` into `target` in place. */
   copy: (target: TraitRecord<TTrait>, source: TraitRecord<TTrait>) => void;
-  /** Sets the trait to `value` immediately; queued keyframes keep playing. */
+  /** Set the trait to `value` immediately; queued keyframes keep playing. */
   snap: (entity: Entity, value: Partial<TraitRecord<TTrait>>) => void;
-  /** Append a keyframe to the entity's queue (adds the trait if absent). */
+  /** Append a keyframe to the entity's queue. Throws on a negative or
+   * non-finite duration. */
   pushKeyframe: (
     entity: Entity,
     keyframe: Keyframe<TraitRecord<TTrait>, P>,
   ) => void;
-  /** Replace all keyframes on an entity (adds the trait if absent). Fires
-   * `onComplete` on the replaced frames. Returns whether the frames were
-   * installed — false on a dead entity or a deduplicated no-op, whose new
-   * callbacks will never fire. Throws on a looping queue with no total
-   * duration. */
+  /** Replace the entity's queue; fire the replaced keyframes' `onComplete`.
+   * Returns whether `frames` installed: false for a destroyed entity or a
+   * queue `equals` matches, whose callbacks never fire. Throws on a negative
+   * or non-finite duration, or a looping queue with zero total duration. */
   setKeyframes: (
     entity: Entity,
     frames: Keyframe<TraitRecord<TTrait>, P>[],

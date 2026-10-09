@@ -13,6 +13,7 @@ export const Transform = /*#__PURE__*/ trait({
   scale: () => new Vector3(1, 1, 1),
 });
 
+/** Record of {@link Transform}. */
 export type TransformValue = TraitRecord<typeof Transform>;
 
 /** Props for {@link TransformAnimation} keyframes. */
@@ -64,7 +65,7 @@ export const TransformAnimation = /*#__PURE__*/ createAnimationSystem({
     channelEquals(a.value.scale, b.value.scale),
 });
 
-/** Both channels absent, or both present and equal. */
+/** Compare optional channels: both absent, or both present and equal. */
 function channelEquals<V extends { equals(other: V): boolean }>(
   a: V | undefined,
   b: V | undefined,

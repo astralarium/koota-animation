@@ -1,11 +1,11 @@
-/** Maps normalized time 0–1 to eased progress. Back easings overshoot 0–1. */
+/** Map normalized time 0–1 to eased progress; back easings overshoot 0–1. */
 export type EasingFn = (t: number) => number;
 
-/** Easing prop: single function for all keys, or per-key functions */
+/** One easing for all keys, or one per key. */
 export type EasingProp<K extends string> =
   EasingFn | Partial<Record<K, EasingFn>>;
 
-/** Get easing function for a specific key from an EasingProp */
+/** Resolve the easing for `key`; defaults to {@link linear}. */
 export function getEasing<K extends string>(
   easing: EasingProp<K> | undefined,
   key: K,
@@ -15,11 +15,12 @@ export function getEasing<K extends string>(
   return easing[key] ?? linear;
 }
 
-// Linear (no easing)
+/** Identity easing. */
 export const linear: EasingFn = (t) => t;
 
-// Power-based easing factories
-// Uses direct multiplication for n=2-8, Math.pow for other values
+// Power factories unroll n = 2–8; other n use `Math.pow`.
+
+/** Ease in by `t^n`. */
 export const easeInPow = (n: number): EasingFn => {
   switch (n) {
     case 2:
@@ -41,6 +42,7 @@ export const easeInPow = (n: number): EasingFn => {
   }
 };
 
+/** Ease out by `1 - (1 - t)^n`. */
 export const easeOutPow = (n: number): EasingFn => {
   switch (n) {
     case 2:
@@ -83,6 +85,7 @@ export const easeOutPow = (n: number): EasingFn => {
   }
 };
 
+/** Ease in by `t^n`, out by its mirror about 0.5. */
 export const easeInOutPow = (n: number): EasingFn => {
   switch (n) {
     case 2:
@@ -165,7 +168,9 @@ export const easeInOutCirc: EasingFn = (t) =>
     ? (1 - Math.sqrt(1 - 4 * t * t)) / 2
     : (Math.sqrt(1 - Math.pow(-2 * t + 2, 2)) + 1) / 2;
 
-// Back (overshoot) factories
+// Back: overshoot past 0–1.
+
+/** Penner's overshoot; peaks 10% past the end. */
 const DEFAULT_OVERSHOOT = 1.70158;
 
 export const easeInBackWith = (overshoot: number): EasingFn => {
@@ -190,7 +195,7 @@ export const easeInBack = /*#__PURE__*/ easeInBackWith(DEFAULT_OVERSHOOT);
 export const easeOutBack = /*#__PURE__*/ easeOutBackWith(DEFAULT_OVERSHOOT);
 export const easeInOutBack = /*#__PURE__*/ easeInOutBackWith(DEFAULT_OVERSHOOT);
 
-// Convenience defaults (cubic)
+// Cubic defaults
 export const easeIn = /*#__PURE__*/ easeInPow(3);
 export const easeOut = /*#__PURE__*/ easeOutPow(3);
 export const easeInOut = /*#__PURE__*/ easeInOutPow(3);

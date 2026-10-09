@@ -17,10 +17,9 @@ import type {
 } from "./types.js";
 
 /**
- * Creates a keyframe animation system for one trait.
+ * Create a keyframe animation system for one trait.
  *
- * Module-level systems tree-shake when assigned whole and marked pure;
- * destructuring the result keeps it in every bundle.
+ * Module-level systems tree-shake when assigned without destructuring and marked pure.
  *
  * @example
  * ```ts
@@ -67,6 +66,7 @@ export function createAnimationSystem<
     needsSnapshot: true,
   });
 
+  // Start snapshot for `snap()`.
   let scratch: T | undefined;
   const snap = (entity: Entity, value: Partial<T>): void => {
     if (!entity.isAlive() || !entity.has(targetTrait)) return;
@@ -74,7 +74,7 @@ export function createAnimationSystem<
     const start = (scratch ??= initSnapshot(targetTrait));
     copy(start, record);
     interpolate(record, start, value, 1, undefined, entity);
-    // SoA records are copies: write back.
+    // Write back SoA copies.
     entity.set(targetTrait, record);
   };
 
@@ -135,7 +135,7 @@ export function createAnimationSystem<
       needsSnapshot: true,
     });
 
-    // After commit: a callback may destroy the entity or install keyframes.
+    // After commit: callbacks may destroy the entity or replace the queue.
     if (replaced) {
       for (const fn of replaced) fn();
     }
@@ -146,15 +146,14 @@ export function createAnimationSystem<
     if (entity.isAlive() && entity.has(Keyframes)) entity.remove(Keyframes);
   };
 
-  // Three phases: advance queues inside the query; then fire completions,
-  // free to mutate any trait; then drop queues still empty. A completion that
-  // pushes onto its own drained queue carries the leftover time.
+  // Advance queues; fire completions; drop still-empty queues.
+  // A completion refilling its drained queue keeps the leftover time.
   const tick = (world: World, dt: number): void => {
     const completed: (() => void)[] = [];
     const drained: Entity[] = [];
 
     world.query(targetTrait, Keyframes).updateEach((data, entity) => {
-      // Query records: updateEach writes SoA mutations back to the store.
+      // updateEach writes SoA mutations back.
       const traitData = data[0] as T;
       const anim = data[1] as AnimationState<T, P>;
 
@@ -164,7 +163,7 @@ export function createAnimationSystem<
       }
       anim.elapsed += dt;
 
-      // Complete every keyframe `elapsed` spans, carrying the excess.
+      // Complete spanned keyframes; carry the excess.
       while (
         anim.frames.length > 0 &&
         anim.elapsed >= anim.frames[0].duration
@@ -236,6 +235,7 @@ export function createAnimationSystem<
   };
 }
 
+/** Throw on a negative or non-finite duration. */
 function assertDuration(keyframe: { duration: number }): void {
   if (!(keyframe.duration >= 0 && keyframe.duration < Infinity)) {
     throw new RangeError(
@@ -244,6 +244,7 @@ function assertDuration(keyframe: { duration: number }): void {
   }
 }
 
+/** Build a fresh record from the trait's schema. */
 function initSnapshot<TTrait extends Trait>(
   targetTrait: TTrait,
 ): TraitRecord<TTrait> {

@@ -336,7 +336,7 @@ describe("setKeyframes", () => {
     );
   });
 
-  it("a replaced keyframe fires its onComplete exactly once", () => {
+  it("fires a replaced keyframe's onComplete exactly once", () => {
     const { setKeyframes, tick } = makeSystem();
     const world = createWorld();
     const entity = world.spawn(Value);
@@ -356,7 +356,7 @@ describe("setKeyframes", () => {
     expect(entity.get(Value)!.v).toBe(2);
   });
 
-  it("a deduplicated call leaves the current queue's onComplete live", () => {
+  it("leaves the current queue's onComplete live on a deduplicated call", () => {
     const { setKeyframes, tick } = makeSystem();
     const world = createWorld();
     const entity = world.spawn(Value);

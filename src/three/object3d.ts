@@ -12,7 +12,7 @@ import {
 /** Object3D parent at the last {@link linkObject3D}; a changed parent triggers a reparent. */
 export const ParentObject = /*#__PURE__*/ trait(() => null as Object3D | null);
 
-/** Shares {@link Transform} with an Object3D's `position`, `quaternion`, and `scale`. */
+/** Link {@link Transform} to an Object3D's `position`, `quaternion`, and `scale`. */
 const linkTransform = /*#__PURE__*/ createLink(
   TransformAnimation,
   (object: Object3D) => ({
@@ -23,10 +23,10 @@ const linkTransform = /*#__PURE__*/ createLink(
 );
 
 /**
- * Binds an entity's {@link Transform} to an Object3D: the trait record holds
- * the object's own `position`, `quaternion`, and `scale`, so writes to either
- * side are shared. An existing Transform's values carry over to the object;
- * a moved object is reparented with its world transform preserved.
+ * Link an entity's {@link Transform} to an Object3D's own `position`,
+ * `quaternion`, and `scale`; writes to either side are shared. An existing
+ * Transform's values carry over to the object; a reparented object keeps its
+ * world transform.
  *
  * @example
  * ```tsx
@@ -55,12 +55,13 @@ export function linkObject3D(
   }
 }
 
+// Scratch for reparentObject3D.
 const _q1 = /*#__PURE__*/ new Quaternion();
 const _s1 = /*#__PURE__*/ new Vector3();
 const _s2 = /*#__PURE__*/ new Vector3();
 
-/** Rewrites the entity's local {@link Transform} into `newParent`'s frame so
- *  its world position, rotation, and scale carry over unchanged. */
+/** Rewrite the entity's local {@link Transform} into `newParent`'s frame,
+ * preserving world position, rotation, and scale. */
 export function reparentObject3D(
   entity: Entity,
   oldParent: Object3D,

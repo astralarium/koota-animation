@@ -7,16 +7,16 @@ export interface LinkOptions<
   T,
   P extends AnimationPropsBase = AnimationPropsBase,
 > {
-  /** Target keyframe. An entity that has the trait animates to it; an entity
-   * without it snaps to it. */
+  /** Target keyframe: an entity with the trait animates to it; a fresh
+   * entity snaps to it. */
   animate?: Keyframe<T, P>;
 }
 
 /**
- * Returns a function that shares an entity's trait with a source object.
- * The trait record becomes `bind(source)`; an existing trait value is copied
+ * Create a function linking an entity's trait to a source object.
+ * `bind(source)` becomes the trait record; an existing trait value copies
  * onto the source first. AoS traits share every field; SoA traits share
- * object fields and copy number fields once.
+ * object fields and copy primitive fields once.
  */
 export function createLink<
   TTrait extends Trait,

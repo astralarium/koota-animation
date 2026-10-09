@@ -21,8 +21,6 @@ import {
 
 // AoS (array of structs) trait: `createLink` shares the record.
 const Opacity = trait(() => ({ opacity: 1 }));
-// SoA (struct of arrays) trait; `createLink` shares only object fields.
-// const Opacity = trait({ opacity: 1 });
 
 // Keyframe props passed to `interpolate()`.
 interface OpacityProps extends AnimationPropsBase {
@@ -31,7 +29,7 @@ interface OpacityProps extends AnimationPropsBase {
 
 export const OpacityAnimation = /*#__PURE__*/ createAnimationSystem({
   trait: Opacity,
-  // Writes the value at `progress` (0–1) into `out`.
+  // Writes the value into `out`.
   interpolate: (
     out,
     start,
@@ -47,7 +45,7 @@ export const OpacityAnimation = /*#__PURE__*/ createAnimationSystem({
   copy: (target, source) => {
     target.opacity = source.opacity;
   },
-  // Optional. Lets `setKeyframes` skip an identical queue.
+  // Optional: `setKeyframes()` skips an identical queue.
   equals: (a, b) => a.value.opacity === b.value.opacity,
 });
 ```
@@ -61,7 +59,7 @@ import { easeOut } from "koota-animation";
 const world = createWorld();
 const entity = world.spawn(Opacity);
 
-// Appends a keyframe. Keyframes start from the current value.
+// Append a keyframe. Keyframes start from the current value.
 OpacityAnimation.pushKeyframe(entity, {
   value: { opacity: 0 }, // target value
   duration: 300, // ms
@@ -69,7 +67,7 @@ OpacityAnimation.pushKeyframe(entity, {
   userData: "fade-out", // arbitrary
 });
 
-// Replaces the queue; calls the replaced keyframes' `onComplete()`.
+// Replace the queue; calls the replaced keyframes' `onComplete()`.
 OpacityAnimation.setKeyframes(
   entity,
   [
@@ -79,39 +77,36 @@ OpacityAnimation.setKeyframes(
   { loop: true },
 );
 
-// Clears the queue without calling `onComplete()`.
+// Clear queue without calling `onComplete()`.
 OpacityAnimation.cancel(entity);
 
-// Sets the value immediately.
+// Set value immediately.
 OpacityAnimation.snap(entity, { opacity: 0.5 });
 
-// Call once per frame: advances animations by `delta` ms; runs onComplete().
+// Call per frame: advances animations by `delta` ms; runs `onComplete()`.
 OpacityAnimation.tick(world, delta);
 
-// Entities with an active animation have the `Keyframes` trait.
+// Entities with active animation have the `Keyframes` trait.
 world.query(OpacityAnimation.Keyframes);
 ```
 
 ### Link
 
-`createLink` shares a trait's state with an external object, such as a material.
+`createLink()` shares trait state with an external object.
 
 ```tsx
 import { createLink } from "koota-animation";
 import type { Material } from "three";
 
-// The entity's Opacity record becomes the material itself.
+// The material becomes the entity's `Opacity` record.
 const linkMaterial = /*#__PURE__*/ createLink(
   OpacityAnimation,
   (material: Material) => material,
 );
 
-// SoA trait: return the object fields to share.
-// createLink(ScaleAnimation, (mesh: Mesh) => ({ scale: mesh.scale }));
-
 const entity = world.spawn(Opacity({ opacity: 0 }));
 
-// Fades the material in on mount: links at opacity 0, then animates to 1.
+// Fade-in on mount.
 <meshBasicMaterial
   transparent
   ref={(material) =>
@@ -131,17 +126,17 @@ Install optional dependency:
 pnpm add three
 ```
 
-`koota-animation/three` provides a `Transform` trait with its animation and link.
+`koota-animation/three` provides a `Transform` trait with animation and linking.
 
 ```tsx
 import { easeOut } from "koota-animation";
 import { linkObject3D, TransformAnimation } from "koota-animation/three";
 import { Vector3 } from "three";
 
-// Links the `Transform` trait.
+// Link the `Transform` trait.
 <group ref={(group) => group && linkObject3D(entity, group)} />;
 
-// Animates position, rotation, and scale.
+// Animate position, rotation, and scale.
 TransformAnimation.setKeyframes(entity, [
   {
     value: { position: new Vector3(0, 1, 0) },
